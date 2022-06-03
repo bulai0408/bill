@@ -1,0 +1,81 @@
+{
+  "name": "bill-client",
+  "description": "Manage Your Money",
+  "version": "0.0.0",
+  "private": true,
+  "main": "desktop/main.js",
+  "scripts": {
+    "clean": "del-cli dist desktop/build public/build",
+    "dev": "yarn clean && cross-env NODE_ENV=development npm-run-all --parallel --print-label --race dev:*",
+    "web": "PORT=3000 HOST=0.0.0.0 remix-serve desktop/build",
+    "dev:remix": "remix watch",
+    "dev:nodemon": "wait-on file:desktop/main.js && nodemon .",
+    "dev:css": "tailwindcss -w -i ./styles/app.css -o app/styles/app.css",
+    "start": "cross-env NODE_ENV=production electron .",
+    "build": "yarn build:web && electron-builder",
+    "build:web": "yarn clean && yarn build:css && remix build",
+    "build:css": "tailwindcss -m -i ./styles/app.css -o app/styles/app.css"
+  },
+  "build": {
+    "files": [
+      "desktop",
+      "public",
+      "remix.config.js"
+    ],
+    "mac": {
+      "target": {
+        "target": "default",
+        "arch": [
+          "x64",
+          "arm64"
+        ]
+      }
+    },
+    "win": {
+      "target": {
+        "target": "default"
+      }
+    }
+  },
+  "dependencies": {
+    "@chakra-ui/icons": "^2.0.0",
+    "@chakra-ui/react": "^2.0.2",
+    "@emotion/react": "^11",
+    "@emotion/server": "^11",
+    "@emotion/styled": "^11",
+    "@remix-run/node": "^1.4.0",
+    "@remix-run/react": "^1.4.0",
+    "@remix-run/serve": "^1.5.1",
+    "@remix-run/server-runtime": "^1.4.0",
+    "axios": "^0.27.2",
+    "dayjs": "^1.11.2",
+    "fast-glob": "^3.2.11",
+    "framer-motion": "^6",
+    "lodash": "^4.17.21",
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0",
+    "remix-electron": "latest"
+  },
+  "devDependencies": {
+    "@remix-run/dev": "^1.4.0",
+    "@types/react": "^18.0.5",
+    "@types/react-dom": "^18.0.1",
+    "autoprefixer": "^10.4.7",
+    "concurrently": "^7.2.0",
+    "cross-env": "^7.0.3",
+    "del-cli": "^4.0.1",
+    "electron": "^18.0.4",
+    "electron-builder": "^23.0.3",
+    "electron-devtools-installer": "^3.2.0",
+    "nodemon": "^2.0.15",
+    "npm-run-all": "^4.1.5",
+    "postcss": "^8.4.14",
+    "tailwindcss": "^3.0.24",
+    "typescript": "^4.6.3",
+    "wait-on": "^6.0.1"
+  },
+  "engines": {
+    "node": ">=14"
+  },
+  "sideEffects": false
+}
