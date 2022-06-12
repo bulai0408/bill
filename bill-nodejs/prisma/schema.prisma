@@ -10,11 +10,21 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Type {
+  id         Int      @id @default(autoincrement())
+  name       String
+  belong     Int
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  Record     Record[]
+}
+
 model Record {
   id         Int      @id @default(autoincrement())
   name       String
-  type       Int
   price      Int
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
+  type       Type     @relation(fields: [typeId], references: [id])
+  typeId     Int
 }

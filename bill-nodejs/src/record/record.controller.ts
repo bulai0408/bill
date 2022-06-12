@@ -16,7 +16,7 @@ const judgeIsNaN = (id: number | string) => !id || isNaN(Number(id));
 export class RecordController {
   constructor(private readonly recordService: RecordService) {}
 
-  @Get('list')
+  @Get('')
   async list() {
     const data = await this.recordService.getRecords();
     return {
@@ -25,34 +25,78 @@ export class RecordController {
     };
   }
 
-  @Post('create')
-  create(@Body() requestData: { name: string; type: number; price: number }) {
-    return this.recordService.createRecord(requestData);
+  @Post('')
+  async create(
+    @Body()
+    requestData: {
+      name: string;
+      typeId: number;
+      price: number;
+    },
+  ) {
+    const data = await this.recordService.createRecord(requestData);
+    return {
+      data,
+      code: 0,
+    };
   }
 
   @Put('/:id')
-  update(
+  async update(
     @Param() paramsData: { id: string },
-    @Body() requestData: { name: string; type: number; price: number },
+    @Body()
+    requestData: { name: string; typeId: number; price: number },
   ) {
     const { id } = paramsData;
     if (judgeIsNaN(id)) {
-      return null;
+      return {
+        code: 1,
+        data: null,
+      };
     }
-    return this.recordService.updateRecord({
+    const data = await this.recordService.updateRecord({
       id: Number(id),
       ...requestData,
     });
+    return {
+      code: 0,
+      data,
+    };
   }
 
   @Delete('/:id')
-  delete(@Param() paramsData: { id: string }) {
+  async delete(@Param() paramsData: { id: string }) {
     const { id } = paramsData;
     if (judgeIsNaN(id)) {
-      return null;
+      return {
+        code: 1,
+        data: null,
+      };
     }
-    return this.recordService.deleteRecord({
+    const data = await this.recordService.deleteRecord({
       id: Number(id),
     });
+    return {
+      code: 0,
+      data,
+    };
+  }
+
+  @Post('type')
+  async createType(@Body() requestData: { name: string; belong: number }) {
+    const data = await this.recordService.createType(requestData);
+    return {
+      code: 0,
+      data,
+    };
+  }
+
+  @Get('type')
+  async getTypeList() {
+    const data = await this.recordService.getTypes();
+    return {
+      code: 0,
+      data,
+    };
   }
 }

@@ -5,18 +5,13 @@ import {
   Editable,
   EditableInput,
   EditablePreview,
-  Input,
   Modal,
   ModalBody,
   ModalContent,
   ModalFooter,
   ModalHeader,
   ModalOverlay,
-  NumberDecrementStepper,
-  NumberIncrementStepper,
-  NumberInput,
-  NumberInputField,
-  NumberInputStepper,
+  Select,
   Text,
   useDisclosure,
 } from "@chakra-ui/react";
@@ -46,19 +41,30 @@ type Record = {
   id: number;
   updated_at: string;
   price: number;
-  type: 0 | 1; // 0 = outcome & 1 = income
+  type: RecordType;
+};
+
+type RecordType = {
+  id: number;
+  name: string;
+  belong: number;
+  created_at: string;
+  updated_at: string;
 };
 
 type LoaderData = {
-  data: Record[];
+  recordList: Record[];
+  recordTypeList: RecordType[];
 };
 
 export const loader: LoaderFunction = async () => {
-  const res = await api.get<Record[]>("/record/list");
-  const data = res.data ?? [];
-
+  const recordRes = await api.get<Record[]>("/record");
+  const typeListRes = await api.get<RecordType[]>("/record/type");
+  const recordList = recordRes.data ?? [];
+  const recordTypeList = typeListRes.data ?? [];
   return {
-    data,
+    recordList,
+    recordTypeList,
   };
 };
 
@@ -67,6 +73,7 @@ export const action: ActionFunction = async ({ request }) => {
   const id = Number(form.get("id"));
   const name = form.get("name");
   const price = form.get("price");
+  const typeId = form.get("typeId");
   const _method = form.get("_method") as "delete" | "put";
   if (!["delete", "put"].includes(_method)) {
     throw new Response(`Not support ${form.get("_method")} method`, {
@@ -88,7 +95,11 @@ export const action: ActionFunction = async ({ request }) => {
   if (_method === "delete") {
     await api.delete(`/record/${id}`);
   } else if (_method === "put") {
-    await api.put(`/record/${id}`, { name, price: Number(price) });
+    await api.put(`/record/${id}`, {
+      name,
+      price: Number(price),
+      typeId: Number(typeId),
+    });
   } else {
     throw new Error("Something went wrong");
   }
@@ -96,11 +107,11 @@ export const action: ActionFunction = async ({ request }) => {
 };
 
 const List = () => {
-  const { data } = useLoaderData<LoaderData>();
+  const { recordList } = useLoaderData<LoaderData>();
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [selectedRecord, setSelectedRecord] = useState<Record>();
 
-  const groupByCreatedTimeData = groupBy(data, (i) =>
+  const groupByCreatedTimeData = groupBy(recordList, (i) =>
     dayjs(i.created_at).format("YYYY-MM-DD")
   );
 
@@ -113,9 +124,14 @@ const List = () => {
           <Box key={key} className="mb-4 last:mb-0">
             <Text className="text-gray-500 text-lg mb-2 font-bold">{key}</Text>
             {list.map((item) => {
-              const { id, price, type, name } = item;
+              const {
+                id,
+                price,
+                type: { belong },
+                name,
+              } = item;
               const money =
-                type === 1 ? (
+                belong === 1 ? (
                   <Text className="text-green-500 font-bold italic">{`+${price}`}</Text>
                 ) : (
                   <Text className="text-red-500 font-bold italic">{`-${price}`}</Text>
@@ -169,6 +185,7 @@ const RecordEditor = ({
   onClose: () => void;
   selectedRecord?: Record;
 }) => {
+  const { recordTypeList } = useLoaderData<LoaderData>();
   const { state } = useTransition();
   const updateFormRef = useRef<HTMLFormElement>(null);
 
@@ -212,24 +229,30 @@ const RecordEditor = ({
             </Box>
           </ModalHeader>
           <ModalBody>
-            <Form
-              ref={updateFormRef}
-              method="post"
-              className="flex justify-between items-center"
-            >
-              <Editable defaultValue={selectedRecord?.name} className="w-40">
-                <EditablePreview />
-                <EditableInput name="name" />
-              </Editable>
+            <Form ref={updateFormRef} method="post" className="flex flex-col">
+              <Box className="w-full pb-2">
+                <Select variant="flushed" size="sm" name="typeId">
+                  {recordTypeList.map(({ id, name }) => (
+                    <option value={id}>{name}</option>
+                  ))}
+                </Select>
+              </Box>
 
-              <Editable
-                defaultValue={selectedRecord?.price as unknown as string}
-                className="w-40"
-                startWithEditView
-              >
-                <EditablePreview />
-                <EditableInput name="price" type="number" />
-              </Editable>
+              <Box className="flex justify-between items-center px-1">
+                <Editable defaultValue={selectedRecord?.name} className="w-40">
+                  <EditablePreview />
+                  <EditableInput name="name" />
+                </Editable>
+
+                <Editable
+                  defaultValue={selectedRecord?.price as unknown as string}
+                  className="w-40"
+                  startWithEditView
+                >
+                  <EditablePreview />
+                  <EditableInput name="price" type="number" />
+                </Editable>
+              </Box>
               <input type="hidden" name="_method" value="put" />
               <input type="hidden" name="id" value={selectedRecord?.id} />
             </Form>
@@ -244,6 +267,10 @@ const RecordEditor = ({
 
 export function CatchBoundary() {
   const caught = useCatch();
+  console.log(
+    "🚀 ~ file: list.tsx ~ line 270 ~ CatchBoundary ~ caught",
+    caught
+  );
 
   if (caught.status === 500) {
     return <Box>Something went wrong with the server...</Box>;

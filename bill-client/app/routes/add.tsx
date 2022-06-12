@@ -11,11 +11,23 @@ import {
   NumberInput,
   NumberInputField,
   NumberInputStepper,
+  Select,
+  Text,
 } from "@chakra-ui/react";
-import { Form, useActionData, useTransition } from "@remix-run/react";
-import { ActionFunction, json, redirect } from "@remix-run/server-runtime";
+import {
+  Form,
+  useActionData,
+  useLoaderData,
+  useTransition,
+} from "@remix-run/react";
+import {
+  ActionFunction,
+  json,
+  LoaderFunction,
+  redirect,
+} from "@remix-run/server-runtime";
+
 import api from "~/api";
-// import { Field, FieldProps, Form, Formik, FormikProps } from "formik";
 
 type ActionData = {
   formError?: string;
@@ -23,21 +35,48 @@ type ActionData = {
   fields?: FormValues;
 };
 
+type LoaderData = {
+  data: RecordType[];
+};
+
+type RecordType = {
+  id: number;
+  name: string;
+  belong: number;
+  created_at: string;
+  updated_at: string;
+};
+
 interface FormValues {
   name: string;
   price: string;
+  typeId: string;
 }
 
 type ErrorValues = Partial<{
   [P in keyof FormValues]: string;
 }>;
 
-const formConfig: { name: string; attr?: InputProps }[] = [
+const formConfig: {
+  name: string;
+  key: string;
+  attr?: InputProps;
+  type?: string;
+  placeholder?: string;
+}[] = [
   {
     name: "name",
+    key: "name",
+    placeholder: "Description",
+  },
+  {
+    name: "type",
+    key: "typeId",
+    type: "select",
   },
   {
     name: "price",
+    key: "price",
     attr: {
       type: "number",
     },
@@ -51,32 +90,47 @@ const validate = (values: FormValues) => {
     errors.name = "Name is required";
   } else if (!values.price) {
     errors.price = "Price is required";
+  } else if (!values.typeId) {
+    errors.typeId = "Type is required";
   }
   return errors;
 };
 
 const badRequest = (data: ActionData) => json(data, { status: 400 });
 
+export const loader: LoaderFunction = async () => {
+  const res = await api.get<RecordType[]>("/record/type");
+  const data = res.data ?? [];
+  return {
+    data,
+  };
+};
+
 export const action: ActionFunction = async ({ request }) => {
   const form = await request.formData();
   const name = form.get("name");
 
+  const typeId = form.get("typeId");
   const price = form.get("price");
 
-  if (typeof name !== "string" || typeof price !== "string") {
+  if (
+    typeof name !== "string" ||
+    typeof price !== "string" ||
+    typeof typeId !== "string"
+  ) {
     return badRequest({
       formError: "Form not submitted correctly.",
     });
   }
-  const fields = { name, price };
+  const fields = { name, price, typeId };
   const fieldErrors = validate(fields);
   if (Object.values(fieldErrors).some(Boolean))
     return badRequest({ fieldErrors, fields });
   try {
-    await api.post("/record/create", {
+    await api.post("/record", {
       name,
       price: Number(price),
-      type: 0,
+      typeId: Number(typeId),
     });
     return redirect("/list");
   } catch (e) {
@@ -86,14 +140,16 @@ export const action: ActionFunction = async ({ request }) => {
 
 const AddRecord = () => {
   const actionData = useActionData<ActionData>();
+  const { data: typeList } = useLoaderData<LoaderData>();
   const { state } = useTransition();
 
   const isSubmitting = state === "submitting";
   return (
     <Form method="post">
       {formConfig.map((i) => {
-        const key = i.name as keyof FormValues;
-        const attr = i.attr;
+        const { name, placeholder } = i;
+        const key = i.key as keyof FormValues;
+        const { attr, type } = i;
         const errorMessage = actionData?.fieldErrors?.[key];
         return (
           <FormControl
@@ -102,9 +158,15 @@ const AddRecord = () => {
             isDisabled={isSubmitting}
           >
             <FormLabel htmlFor={key} className="first-letter:uppercase">
-              {key}
+              {name}
             </FormLabel>
-            {attr?.type === "number" ? (
+            {type === "select" ? (
+              <Select name={key} id={key}>
+                {typeList.map(({ id, name }) => (
+                  <option value={id}>{name}</option>
+                ))}
+              </Select>
+            ) : attr?.type === "number" ? (
               <NumberInput defaultValue={0} min={0}>
                 <NumberInputField id={key} name={key} />
                 <NumberInputStepper>
@@ -113,7 +175,7 @@ const AddRecord = () => {
                 </NumberInputStepper>
               </NumberInput>
             ) : (
-              <Input id={key} name={key} {...attr} />
+              <Input id={key} name={key} placeholder={placeholder} {...attr} />
             )}
             {errorMessage ? (
               <FormErrorMessage>{errorMessage}</FormErrorMessage>
